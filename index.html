@@ -72,7 +72,20 @@ const now = new Date();
 const mon = new Date(now.getFullYear(), now.getMonth(), now.getDate() - (now.getDay() + 6) % 7);
 const week = [mon.getFullYear(), String(mon.getMonth() + 1).padStart(2, '0'), String(mon.getDate()).padStart(2, '0')].join('-');
 
-let user = null, member = null, members = [], attendance = {}, prayers = [], prayed = {}, page = 'home', listeners = [], memberUnsub = null, watched = new Set(), busy = false, requests = [], invites = [], myRequest = null;
+let user = null;
+let member = null;
+let members = [];
+let attendance = {};
+let prayers = [];
+let prayed = {};
+let page = 'home';
+let listeners = [];
+let memberUnsub = null;
+let watched = new Set();
+let busy = false;
+let requests = [];
+let invites = [];
+let myRequest = null;
 
 const memberRef = function(uid) { return doc(db, 'districts', district, 'members', uid); };
 const attRef = function(uid) { return doc(db, 'districts', district, 'weeks', week, 'attendance', uid); };
@@ -285,24 +298,23 @@ function form() {
   return '<form class="card" id="prayerForm"><h2>기도제목 등록</h2><label class="field">제목<input name="title" maxlength="60" required></label><label class="field">내용<textarea name="body" maxlength="2000" required></textarea></label><label class="field">공유 범위<select name="visibility"><option value="district">우리 구역에 공유</option><option value="intercession">중보기도팀 전달 요청 (구역장만 확인하기)</option></select></label><p class="small">요청은 구역장에게만 보입니다. 구역장이 직접 중보기도팀에 전달합니다.</p><div class="row"><button type="button" class="secondary" data-page="prayers">취소</button><button class="primary" type="submit">등록</button></div></form>';
 }
 
-async function saveAttendance(uid, edit) {
+function saveAttendance(uid, edit) {
   if (busy) return;
   busy = true;
-  try {
-    let r = JSON.parse(JSON.stringify(attendance[uid] || blank(uid)));
-    edit(r);
-    if (r.services.sunday1 || r.services.sunday2 || r.services.afternoon) {
-      r.sundayAbsenceReason = '';
-    }
-    await setDoc(attRef(uid), r);
+  let r = JSON.parse(JSON.stringify(attendance[uid] || blank(uid)));
+  edit(r);
+  if (r.services.sunday1 || r.services.sunday2 || r.services.afternoon) {
+    r.sundayAbsenceReason = '';
+  }
+  setDoc(attRef(uid), r).then(function() {
     attendance[uid] = r;
     draw();
-  } catch (e) {
+    busy = false;
+  }).catch(function(e) {
     fail(e);
     draw();
-  } finally {
     busy = false;
-  }
+  });
 }
 
 function watchAttendance(uid) {
@@ -398,67 +410,64 @@ function resetAuth() {
   });
 }
 
-document.addEventListener('click', async function(e) {
+document.addEventListener('click', function(e) {
   let t = e.target.closest('button');
   if (!t) return;
   if (t.id === 'login') {
-    try {
-      await signInWithPopup(auth, new GoogleAuthProvider());
-    } catch (err) {
+    signInWithPopup(auth, new GoogleAuthProvider()).catch(function(err) {
       if (err.code !== 'auth/popup-closed-by-user') fail(err);
-    }
+    });
     return;
   }
   if (t.id === 'account') {
-    await signOut(auth);
+    signOut(auth);
     return;
   }
   if (t.id === 'newCode') {
     t.disabled = true;
-    try {
-      let code = crypto.randomUUID();
-      await setDoc(doc(db, 'districts', district, 'invites', code), { createdBy: user.uid, createdAt: serverTimestamp() });
+    let code = crypto.randomUUID();
+    setDoc(doc(db, 'districts', district, 'invites', code), { createdBy: user.uid, createdAt: serverTimestamp() }).then(function() {
       flash('참여코드를 만들었어요. 복사해서 구역원에게 전달하세요.');
-    } catch (err) {
-      fail(err);
-    } finally {
       t.disabled = false;
-    }
+    }).catch(function(err) {
+      fail(err);
+      t.disabled = false;
+    });
     return;
   }
   if (t.dataset.copyCode) {
-    try {
-      await navigator.clipboard.writeText(t.dataset.copyCode);
+    navigator.clipboard.writeText(t.dataset.copyCode).then(function() {
       flash('참여코드를 복사했어요.');
-    } catch (err) {
+    }).catch(function(err) {
       fail(err);
-    }
+    });
     return;
   }
   if (t.dataset.removeCode) {
-    try {
-      await deleteDoc(doc(db, 'districts', district, 'invites', t.dataset.removeCode));
+    deleteDoc(doc(db, 'districts', district, 'invites', t.dataset.removeCode)).then(function() {
       flash('참여코드를 폐기했어요.');
-    } catch (err) {
+    }).catch(function(err) {
       fail(err);
-    }
+    });
     return;
   }
   if (t.dataset.approve) {
     t.disabled = true;
-    try {
-      let r = requests.find(function(x) { return x.uid === t.dataset.approve; });
-      if (!r) throw Error('요청이 없습니다');
-      let b = writeBatch(db);
-      b.set(memberRef(r.uid), { name: r.name, role: 'member' });
-      b.delete(doc(db, 'districts', district, 'joinRequests', r.uid));
-      await b.commit();
-      flash(r.name + '님을 구역원으로 승인했어요.');
-    } catch (err) {
-      fail(err);
-    } finally {
+    let r = requests.find(function(x) { return x.uid === t.dataset.approve; });
+    if (!r) {
       t.disabled = false;
+      return;
     }
+    let b = writeBatch(db);
+    b.set(memberRef(r.uid), { name: r.name, role: 'member' });
+    b.delete(doc(db, 'districts', district, 'joinRequests', r.uid));
+    b.commit().then(function() {
+      flash(r.name + '님을 구역원으로 승인했어요.');
+      t.disabled = false;
+    }).catch(function(err) {
+      fail(err);
+      t.disabled = false;
+    });
     return;
   }
   if (t.dataset.promote) {
@@ -466,24 +475,22 @@ document.addEventListener('click', async function(e) {
     if (!m || m.role !== 'member') return;
     if (!confirm(m.name + '님에게 구역장 권한을 줄까요?')) return;
     t.disabled = true;
-    try {
-      let docRef = memberRef(m.uid);
-      await setDoc(docRef, { role: 'leader' }, { merge: true });
+    let docRef = memberRef(m.uid);
+    setDoc(docRef, { role: 'leader' }, { merge: true }).then(function() {
       flash(m.name + '님에게 구역장 권한을 주었어요.');
-    } catch (err) {
-      fail(err);
-    } finally {
       t.disabled = false;
-    }
+    }).catch(function(err) {
+      fail(err);
+      t.disabled = false;
+    });
     return;
   }
   if (t.dataset.reject) {
-    try {
-      await deleteDoc(doc(db, 'districts', district, 'joinRequests', t.dataset.reject));
+    deleteDoc(doc(db, 'districts', district, 'joinRequests', t.dataset.reject)).then(function() {
       flash('가입 요청을 거절했어요.');
-    } catch (err) {
+    }).catch(function(err) {
       fail(err);
-    }
+    });
     return;
   }
   if (t.dataset.page) {
@@ -498,13 +505,12 @@ document.addEventListener('click', async function(e) {
     return;
   }
   if (t.dataset.pray) {
-    try {
-      let r = prayRef(t.dataset.pray);
-      let pObj = prayed[t.dataset.pray] || {};
-      if (pObj.mine) await deleteDoc(r);
-      else await setDoc(r, { prayedAt: serverTimestamp() });
-    } catch (err) {
-      fail(err);
+    let r = prayRef(t.dataset.pray);
+    let pObj = prayed[t.dataset.pray] || {};
+    if (pObj.mine) {
+      deleteDoc(r).catch(function(err) { fail(err); });
+    } else {
+      setDoc(r, { prayedAt: serverTimestamp() }).catch(function(err) { fail(err); });
     }
   }
 });
@@ -523,7 +529,7 @@ document.addEventListener('change', function(e) {
   }
 });
 
-document.addEventListener('submit', async function(e) {
+document.addEventListener('submit', function(e) {
   if (e.target.id === 'joinForm') {
     e.preventDefault();
     let f = new FormData(e.target);
@@ -532,13 +538,12 @@ document.addEventListener('submit', async function(e) {
     if (!name || name.length > 40 || !code) return;
     let b = e.target.querySelector('[type=submit]');
     b.disabled = true;
-    try {
-      await setDoc(doc(db, 'districts', district, 'joinRequests', user.uid), { name, code, uid: user.uid, requestedAt: serverTimestamp() });
+    setDoc(doc(db, 'districts', district, 'joinRequests', user.uid), { name: name, code: code, uid: user.uid, requestedAt: serverTimestamp() }).then(function() {
       flash('가입 요청을 보냈어요.');
-    } catch (err) {
+    }).catch(function(err) {
       fail(err);
       b.disabled = false;
-    }
+    });
     return;
   }
   if (e.target.id !== 'prayerForm') return;
@@ -549,15 +554,14 @@ document.addEventListener('submit', async function(e) {
   if (!title || !body) return;
   let b = e.target.querySelector('[type=submit]');
   b.disabled = true;
-  try {
-    await addDoc(collection(db, 'districts', district, 'prayers'), { authorUid: user.uid, title, body, visibility: f.get('visibility'), createdAt: serverTimestamp() });
+  addDoc(collection(db, 'districts', district, 'prayers'), { authorUid: user.uid, title: title, body: body, visibility: f.get('visibility'), createdAt: serverTimestamp() }).then(function() {
     page = 'prayers';
     draw();
     flash('기도제목을 등록했어요.');
-  } catch (err) {
+  }).catch(function(err) {
     fail(err);
     b.disabled = false;
-  }
+  });
 });
 
 draw();
