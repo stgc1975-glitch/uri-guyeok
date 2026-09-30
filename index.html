@@ -119,7 +119,7 @@ function nav() {
   }
   ['nav', 'mobileNav'].forEach(function(id) {
     let container = $(id);
-    if (!container) continue;
+    if (!container) return;
     container.innerHTML = tabs.map(function(t) {
       let k = t[0], v = t[1];
       let activeClass = (page === k) ? 'active' : '';
