@@ -132,7 +132,7 @@ function checks(r, uid) {
 
 function fields(r, uid) {
   let own = uid === user.uid && page === 'home';
-  return `<div class="subgrid"><label class="field">새벽예배 (주 7회까지)<input class="number" type="number" min="0" max="7" data-dawn="${esc(uid)}" value="${r.dawn ?? 0}"></label><label class="field">주일예배 결석 사유<select data-reason="${esc(uid)}"><option value="">없음</option>${reasons.map(x => `<option ${r.sundayAbsenceReason === x ? 'selected' : ''}>${x}</option>`).join('')}</select></label></div>${own ? '<p class="small">주일예배에 참석했다면 결석 사유는 비워주세요.</p>' : ''}`;
+  return `<div class="subgrid"><label class="field">새벽예배 (주 7회까지)<input class="number" type="number" min="0" max="7" data-dawn="${esc(uid)}" value="${r.dawn ?? 0}"></label><label class="field">주일예배 결석 사유<select data-reason="${esc(uid)}"><option value="">없음</option>${reasons.map(x => `<option ${r.sundayAbsenceReason === x ? 'selected' : ''}>${x}</option>`).join('')}</select></label></div>${own ? '<p class="small">주일예배에 참석했다면 결석 사유는 비워주세요.</p>': ''}`;
 }
 
 function home() {
