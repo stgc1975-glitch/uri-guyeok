@@ -61,8 +61,12 @@ const svc = [
   ['monthly', '월삭']
 ];
 const reasons = ['개인사정', '건강', '여행', '직장', '장기결석', '기타'];
-const $ = id => document.getElementById(id);
-const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'}[c]));
+const $ = function(id) { return document.getElementById(id); };
+const esc = function(v) {
+  return String(v === undefined || v === null ? '' : v).replace(/[&<>"']/g, function(c) {
+    return {'&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'}[c];
+  });
+};
 
 const now = new Date();
 const mon = new Date(now.getFullYear(), now.getMonth(), now.getDate() - (now.getDay() + 6) % 7);
@@ -70,25 +74,39 @@ const week = [mon.getFullYear(), String(mon.getMonth() + 1).padStart(2, '0'), St
 
 let user = null, member = null, members = [], attendance = {}, prayers = [], prayed = {}, page = 'home', listeners = [], memberUnsub = null, watched = new Set(), busy = false, requests = [], invites = [], myRequest = null;
 
-const memberRef = uid => doc(db, 'districts', district, 'members', uid);
-const attRef = uid => doc(db, 'districts', district, 'weeks', week, 'attendance', uid);
-const prayerRef = id => doc(db, 'districts', district, 'prayers', id);
-const prayRef = id => doc(db, 'districts', district, 'prayers', id, 'prayedBy', user.uid);
+const memberRef = function(uid) { return doc(db, 'districts', district, 'members', uid); };
+const attRef = function(uid) { return doc(db, 'districts', district, 'weeks', week, 'attendance', uid); };
+const prayerRef = function(id) { return doc(db, 'districts', district, 'prayers', id); };
+const prayRef = function(id) { return doc(db, 'districts', district, 'prayers', id, 'prayedBy', user.uid); };
 
-const blank = uid => ({ uid, services: Object.fromEntries(svc.map(([k]) => [k, false])), dawn: 0, sundayAbsenceReason: '' });
+const blank = function(uid) {
+  return { uid: uid, services: Object.fromEntries(svc.map(function(k) { return [k[0], false]; })), dawn: 0, sundayAbsenceReason: '' };
+};
 
-function flash(msg, bad = false) {
-  $('message').innerHTML = `<div class="notice ${bad ? 'error' : ''}">${esc(msg)}</div>`;
-  setTimeout(() => { if($('message'))$('message').innerHTML = ''; }, 6000);
+function flash(msg, bad) {
+  let isBad = bad ? true : false;
+  let msgElem = $('message');
+  if (msgElem) {
+    msgElem.innerHTML = '<div class="notice ' + (isBad ? 'error' : '') + '">' + esc(msg) + '</div>';
+    setTimeout(function() {
+      if ($('message')) $('message').innerHTML = '';
+    }, 6000);
+  }
 }
 
 function fail(e) {
   console.error(e);
-  flash(e.code === 'auth/unauthorized-domain' ? 'Firebase 인증에 이 사이트 주소를 승인된 도메인으로 추가해야 해요.' : e.code === 'permission-denied' ? '접근 권한이 없습니다. 구역원 등록을 확인해주세요.' : '처리하지 못했어요. 잠시 후 다시 시도해주세요.', true);
+  let errMsg = '처리하지 못했어요. 잠시 후 다시 시도해주세요.';
+  if (e.code === 'auth/unauthorized-domain') {
+    errMsg = 'Firebase 인증에 이 사이트 주소를 승인된 도메인으로 추가해야 해요.';
+  } else if (e.code === 'permission-denied') {
+    errMsg = '접근 권한이 없습니다. 구역원 등록을 확인해주세요.';
+  }
+  flash(errMsg, true);
 }
 
 function stop() {
-  listeners.forEach(f => f());
+  listeners.forEach(function(f) { f(); });
   listeners = [];
   watched.clear();
   prayed = {};
@@ -96,70 +114,186 @@ function stop() {
 
 function nav() {
   let tabs = [['home', '내 출석'], ['prayers', '함께 기도'], ['form', '기도 등록']];
-  if (member?.role === 'leader') tabs.splice(1, 0, ['manage', '구역원 출석'], ['join', '가입 관리']);
-  for (let id of ['nav', 'mobileNav']) {
-    $(id).innerHTML = tabs.map(([k, v]) => `<button data-page="${k}" class="${page === k ? 'active' : ''}">${v}</button>`).join('');
-    $(id).classList.toggle('hide', !member);
+  if (member && member.role === 'leader') {
+    tabs.splice(1, 0, ['manage', '구역원 출석'], ['join', '가입 관리']);
   }
+  ['nav', 'mobileNav'].forEach(function(id) {
+    let container = $(id);
+    if (!container) return;
+    container.innerHTML = tabs.map(function(t) {
+      let k = t[0], v = t[1];
+      let activeClass = (page === k) ? 'active' : '';
+      return '<button data-page="' + k + '" class="' + activeClass + '">' + v + '</button>';
+    }).join('');
+    container.classList.toggle('hide', !member);
+  });
 }
 
 function draw() {
-  if ((page === 'manage' || page === 'join') && member?.role !== 'leader') page = 'home';
+  if ((page === 'manage' || page === 'join') && (!member || member.role !== 'leader')) {
+    page = 'home';
+  }
   nav();
-  $('weekLabel').textContent = member ? `${mon.getMonth() + 1}월 ${mon.getDate()}일 주간` : '';
-  $('heading').textContent = member ? ({home: '이번 주 나의 출석', manage: '구역원 출석', join: '가입 관리', prayers: '함께 기도해요', form: '기도제목 등록'})[page] : '우리 구역';
-  $('account').classList.toggle('hide', !user);
+  let weekLabelElem = $('weekLabel');
+  if (weekLabelElem) {
+    weekLabelElem.textContent = member ? (mon.getMonth() + 1) + '월 ' + mon.getDate() + '일 주간' : '';
+  }
+  let headingElem = $('heading');
+  if (headingElem) {
+    if (!member) {
+      headingElem.textContent = '우리 구역';
+    } else {
+      if (page === 'home') headingElem.textContent = '이번 주 나의 출석';
+      else if (page === 'manage') headingElem.textContent = '구역원 출석';
+      else if (page === 'join') headingElem.textContent = '가입 관리';
+      else if (page === 'prayers') headingElem.textContent = '함께 기도해요';
+      else if (page === 'form') headingElem.textContent = '기도제목 등록';
+      else headingElem.textContent = '우리 구역';
+    }
+  }
+  let accountElem = $('account');
+  if (accountElem) {
+    accountElem.classList.toggle('hide', !user);
+  }
+
+  let rootElem = $('root');
+  if (!rootElem) return;
 
   if (!user) {
-    $('root').innerHTML = `<section class="card warm center"><div class="eyebrow">우리 구역만 함께 기록해요</div><h1>예배와 기도를 나눠요</h1><p class="muted">Google 계정으로 로그인하면 본인의 출석을 체크할 수 있습니다.</p><button class="primary" id="login">Google로 로그인</button></section>`;
+    rootElem.innerHTML = '<section class="card warm center"><div class="eyebrow">우리 구역만 함께 기록해요</div><h1>예배와 기도를 나눠요</h1><p class="muted">Google 계정으로 로그인하면 본인의 출석을 체크할 수 있습니다.</p><button class="primary" id="login">Google로 로그인</button></section>';
     return;
   }
   if (!member) {
-    $('heading').textContent = '구역원 가입';
-    $('root').innerHTML = myRequest ? `<section class="card center"><h2>가입 요청을 보냈어요</h2><p class="muted">구역장이 승인하면 이 화면에서 바로 출석을 기록할 수 있어요.</p><p class="small">요청 이름: ${esc(myRequest.name)}</p></section>` : `<form class="card center" id="joinForm"><h2>우리 구역 가입 요청</h2><p class="muted">구역장에게 받은 참여코드를 입력하세요. 구역장 승인 후 이용할 수 있어요.</p><label class="field">이름<input name="name" maxlength="40" required autocomplete="name"></label><label class="field">참여코드<input name="code" required autocomplete="off" spellcheck="false"></label><button class="primary" type="submit">가입 요청</button></form>`;
+    if (headingElem) headingElem.textContent = '구역원 가입';
+    if (myRequest) {
+      rootElem.innerHTML = '<section class="card center"><h2>가입 요청을 보냈어요</h2><p class="muted">구역장이 승인하면 이 화면에서 바로 출석을 기록할 수 있어요.</p><p class="small">요청 이름: ' + esc(myRequest.name) + '</p></section>';
+    } else {
+      rootElem.innerHTML = '<form class="card center" id="joinForm"><h2>우리 구역 가입 요청</h2><p class="muted">구역장에게 받은 참여코드를 입력하세요. 구역장 승인 후 이용할 수 있어요.</p><label class="field">이름<input name="name" maxlength="40" required autocomplete="name"></label><label class="field">참여코드<input name="code" required autocomplete="off" spellcheck="false"></label><button class="primary" type="submit">가입 요청</button></form>';
+    }
     return;
   }
-  $('root').innerHTML = ({home: home, manage: manage, join: joinManage, prayers: prayerList, form: form})[page]();
+  
+  if (page === 'home') rootElem.innerHTML = home();
+  else if (page === 'manage') rootElem.innerHTML = manage();
+  else if (page === 'join') rootElem.innerHTML = joinManage();
+  else if (page === 'prayers') rootElem.innerHTML = prayerList();
+  else if (page === 'form') rootElem.innerHTML = form();
+  else rootElem.innerHTML = home();
 }
 
 function joinManage() {
-  return `<section class="card warm"><h2>구역원 가입</h2><p class="muted">참여코드를 전달받은 사람이 가입을 요청하면 이곳에서 승인하세요.</p><button class="primary" id="newCode">새 참여코드 만들기</button>${invites.map(x => `<div class="row" style="margin-top:12px"><span class="code">${esc(x.id)}</span><button class="secondary" data-copy-code="${esc(x.id)}">복사</button><button class="ghost" data-remove-code="${esc(x.id)}">코드 폐기</button></div>`).join('')}</section><section class="card"><h2>가입 요청</h2>${requests.map(r => `<div class="person"><strong>${esc(r.name)}</strong><div class="row"><button class="primary" data-approve="${esc(r.uid)}">구역원으로 승인</button><button class="ghost" data-reject="${esc(r.uid)}">거절</button></div></div>`).join('') || '<p class="muted">대기 중인 요청이 없어요.</p>'}</section><section class="card"><h2>구역장 권한</h2><p class="small">구역원을 승인한 뒤 필요할 때 구역장 권한을 줄 수 있어요.</p>${members.map(m => `<div class="person row"><strong>${esc(m.name || '구역원')} · ${m.role === 'leader' ? '구역장' : '구역원'}</strong>${m.role === 'member' ? `<button class="secondary" data-promote="${esc(m.uid)}">구역장 권한 주기</button>` : ''}</div>`).join('')}</section>`;
+  let invitesHtml = invites.map(function(x) {
+    return '<div class="row" style="margin-top:12px"><span class="code">' + esc(x.id) + '</span><button class="secondary" data-copy-code="' + esc(x.id) + '">복사</button><button class="ghost" data-remove-code="' + esc(x.id) + '">코드 폐기</button></div>';
+  }).join('');
+
+  let requestsHtml = requests.map(function(r) {
+    return '<div class="person"><strong>' + esc(r.name) + '</strong><div class="row"><button class="primary" data-approve="' + esc(r.uid) + '">구역원으로 승인</button><button class="ghost" data-reject="' + esc(r.uid) + '">거절</button></div></div>';
+  }).join('');
+  if (!requestsHtml) requestsHtml = '<p class="muted">대기 중인 요청이 없어요.</p>';
+
+  let membersHtml = members.map(function(m) {
+    let mName = m.name ? m.name : '구역원';
+    let mRoleText = (m.role === 'leader') ? '구역장' : '구역원';
+    let promoteBtn = (m.role === 'member') ? '<button class="secondary" data-promote="' + esc(m.uid) + '">구역장 권한 주기</button>' : '';
+    return '<div class="person row"><strong>' + esc(mName) + ' · ' + mRoleText + '</strong>' + promoteBtn + '</div>';
+  }).join('');
+
+  return '<section class="card warm"><h2>구역원 가입</h2><p class="muted">참여코드를 전달받은 사람이 가입을 요청하면 이곳에서 승인하세요.</p><button class="primary" id="newCode">새 참여코드 만들기</button>' + invitesHtml + '</section><section class="card"><h2>가입 요청</h2>' + requestsHtml + '</section><section class="card"><h2>구역장 권한</h2><p class="small">구역원을 승인한 뒤 필요할 때 구역장 권한을 줄 수 있어요.</p>' + membersHtml + '</section>';
 }
 
 function checks(r, uid) {
-  return `<div class="week-grid">${svc.map(([k, label]) => `<button type="button" class="check ${r.services?.[k] ? 'on' : ''}" data-uid="${esc(uid)}" data-attend="${k}" aria-pressed="${!!r.services?.[k]}">${label}${r.services?.[k] ? ' ✓' : ''}</button>`).join('')}</div>`;
+  return '<div class="week-grid">' + svc.map(function(item) {
+    let k = item[0], label = item[1];
+    let servicesObj = r.services ? r.services : {};
+    let isOn = !!servicesObj[k];
+    let checkClass = isOn ? 'check on' : 'check';
+    let checkMark = isOn ? ' ✓' : '';
+    return '<button type="button" class="' + checkClass + '" data-uid="' + esc(uid) + '" data-attend="' + k + '" aria-pressed="' + isOn + '">' + label + checkMark + '</button>';
+  }).join('') + '</div>';
 }
 
 function fields(r, uid) {
-  let own = uid === user.uid && page === 'home';
-  return `<div class="subgrid"><label class="field">새벽예배 (주 7회까지)<input class="number" type="number" min="0" max="7" data-dawn="${esc(uid)}" value="${r.dawn ?? 0}"></label><label class="field">주일예배 결석 사유<select data-reason="${esc(uid)}"><option value="">없음</option>${reasons.map(x => `<option ${r.sundayAbsenceReason === x ? 'selected' : ''}>${x}</option>`).join('')}</select></label></div>${own ? '<p class="small">주일예배에 참석했다면 결석 사유는 비워주세요.</p>': ''}`;
+  let own = (uid === user.uid && page === 'home');
+  let dawnVal = (r.dawn !== undefined && r.dawn !== null) ? r.dawn : 0;
+  let currentReason = r.sundayAbsenceReason ? r.sundayAbsenceReason : '';
+  
+  let reasonsOpts = reasons.map(function(x) {
+    let sel = (currentReason === x) ? 'selected' : '';
+    return '<option ' + sel + '>' + x + '</option>';
+  }).join('');
+
+  let html = '<div class="subgrid"><label class="field">새벽예배 (주 7회까지)<input class="number" type="number" min="0" max="7" data-dawn="' + esc(uid) + '" value="' + dawnVal + '"></label><label class="field">주일예배 결석 사유<select data-reason="' + esc(uid) + '"><option value="">없음</option>' + reasonsOpts + '</select></label></div>';
+  if (own) {
+    html += '<p class="small">주일예배에 참석했다면 결석 사유는 비워주세요.</p>';
+  }
+  return html;
 }
 
 function home() {
-  let r = attendance[user.uid] || blank(user.uid), n = svc.filter(([k]) => r.services?.[k]).length;
-  return `<section class="card warm"><div class="eyebrow">${esc(member.name || user.displayName || '구역원')}님의 기록</div><h2 style="margin:9px 0">이번 주 예배를 체크해요</h2><div class="small">참석한 예배를 누르세요. 다시 누르면 해제됩니다.</div></section><section class="card"><h2>이번 주 출석</h2>${checks(r, user.uid)}${fields(r, user.uid)}</section><section class="card"><h2>이번 주 기록</h2><div class="row"><span>예배 출석 ${n}개</span><strong>새벽예배 ${r.dawn ?? 0}회</strong></div></section>`;
+  let r = attendance[user.uid] || blank(user.uid);
+  let userName = (member && member.name) ? member.name : (user.displayName ? user.displayName : '구역원');
+  let count = 0;
+  if (r.services) {
+    svc.forEach(function(item) {
+      if (r.services[item[0]]) count++;
+    });
+  }
+  let dawnVal = (r.dawn !== undefined && r.dawn !== null) ? r.dawn : 0;
+  return '<section class="card warm"><div class="eyebrow">' + esc(userName) + '님의 기록</div><h2 style="margin:9px 0">이번 주 예배를 체크해요</h2><div class="small">참석한 예배를 누르세요. 다시 누르면 해제됩니다.</div></section><section class="card"><h2>이번 주 출석</h2>' + checks(r, user.uid) + fields(r, user.uid) + '</section><section class="card"><h2>이번 주 기록</h2><div class="row"><span>예배 출석 ' + count + '개</span><strong>새벽예배 ' + dawnVal + '회</strong></div></section>';
 }
 
 function manage() {
-  return `<section class="card warm"><h2>한 화면에서 출석 확인</h2><p class="muted">구역원이 직접 체크한 내용도 여기 표시됩니다. 버튼을 다시 누르면 해제돼요.</p></section><section class="card">${members.map(m => { let r = attendance[m.uid] || blank(m.uid); return `<div class="person"><strong>${esc(m.name || '구역원')}</strong>${checks(r, m.uid)}${fields(r, m.uid)}</div>`; }).join('') || '<p class="muted">등록된 구역원이 없어요.</p>'}</section>`;
+  let membersCards = members.map(function(m) {
+    let r = attendance[m.uid] || blank(m.uid);
+    let mName = m.name ? m.name : '구역원';
+    return '<div class="person"><strong>' + esc(mName) + '</strong>' + checks(r, m.uid) + fields(r, m.uid) + '</div>';
+  }).join('');
+  if (!membersCards) membersCards = '<p class="muted">등록된 구역원이 없어요.</p>';
+
+  return '<section class="card warm"><h2>한 화면에서 출석 확인</h2><p class="muted">구역원이 직접 체크한 내용도 여기 표시됩니다. 버튼을 다시 누르면 해제돼요.</p></section><section class="card">' + membersCards + '</section>';
 }
 
 function prayerList() {
-  let list = prayers.filter(p => p.visibility === 'district' || p.authorUid === user.uid || member.role === 'leader');
-  return `<section class="card warm"><div class="row"><div><h2>함께 기도해요</h2><span class="small">한 사람당 한 번 · 다시 누르면 취소</span></div><button class="primary" data-page="form">기도제목 쓰기</button></div></section><section class="card">${list.map(p => `<article class="prayer"><span class="tag">${p.visibility === 'district' ? '우리 구역' : '중보기도팀 전달 요청'}</span><div class="small" style="margin-top:10px">${esc(members.find(m => m.uid === p.authorUid)?.name \vert{}\vert{} '구역원')}</div><h3>${esc(p.title)}</h3><p>${esc(p.body)}</p>${p.visibility === 'district' ? `<button class="secondary" data-pray="${esc(p.id)}" aria-pressed="${!!prayed[p.id]?.mine}">🙏 ${prayed[p.id]?.mine ? '기도 표시 취소' : '함께 기도해요'} · ${prayed[p.id]?.count ?? 0}</button>` : '<span class="small">현재 구역장에게만 보이는 요청</span>'}</article>`).join('') || '<p class="muted">아직 등록된 기도제목이 없어요.</p>'}</section>`;
+  let list = prayers.filter(function(p) {
+    return p.visibility === 'district' || p.authorUid === user.uid || (member && member.role === 'leader');
+  });
+
+  let itemsHtml = list.map(function(p) {
+    let authorObj = members.find(function(m) { return m.uid === p.authorUid; });
+    let authorName = (authorObj && authorObj.name) ? authorObj.name : '구역원';
+    let tagText = (p.visibility === 'district') ? '우리 구역' : '중보기도팀 전달 요청';
+    
+    let actionBtn = '';
+    if (p.visibility === 'district') {
+      let pObj = prayed[p.id] || {};
+      let isMine = !!pObj.mine;
+      let cnt = pObj.count ? pObj.count : 0;
+      let btnText = isMine ? '기도 표시 취소' : '함께 기도해요';
+      actionBtn = '<button class="secondary" data-pray="' + esc(p.id) + '" aria-pressed="' + isMine + '">🙏 ' + btnText + ' · ' + cnt + '</button>';
+    } else {
+      actionBtn = '<span class="small">현재 구역장에게만 보이는 요청</span>';
+    }
+
+    return '<article class="prayer"><span class="tag">' + tagText + '</span><div class="small" style="margin-top:10px">' + esc(authorName) + '</div><h3>' + esc(p.title) + '</h3><p>' + esc(p.body) + '</p>' + actionBtn + '</article>';
+  }).join('');
+  if (!itemsHtml) itemsHtml = '<p class="muted">아직 등록된 기도제목이 없어요.</p>';
+
+  return '<section class="card warm"><div class="row"><div><h2>함께 기도해요</h2><span class="small">한 사람당 한 번 · 다시 누르면 취소</span></div><button class="primary" data-page="form">기도제목 쓰기</button></div></section><section class="card">' + itemsHtml + '</section>';
 }
 
 function form() {
-  return `<form class="card" id="prayerForm"><h2>기도제목 등록</h2><label class="field">제목<input name="title" maxlength="60" required></label><label class="field">내용<textarea name="body" maxlength="2000" required></textarea></label><label class="field">공유 범위<select name="visibility"><option value="district">우리 구역에 공유</option><option value="intercession">중보기도팀 전달 요청 (구역장만 확인하기)</option></select></label><p class="small">요청은 구역장에게만 보입니다. 구역장이 직접 중보기도팀에 전달합니다.</p><div class="row"><button type="button" class="secondary" data-page="prayers">취소</button><button class="primary" type="submit">등록</button></div></form>`;
+  return '<form class="card" id="prayerForm"><h2>기도제목 등록</h2><label class="field">제목<input name="title" maxlength="60" required></label><label class="field">내용<textarea name="body" maxlength="2000" required></textarea></label><label class="field">공유 범위<select name="visibility"><option value="district">우리 구역에 공유</option><option value="intercession">중보기도팀 전달 요청 (구역장만 확인하기)</option></select></label><p class="small">요청은 구역장에게만 보입니다. 구역장이 직접 중보기도팀에 전달합니다.</p><div class="row"><button type="button" class="secondary" data-page="prayers">취소</button><button class="primary" type="submit">등록</button></div></form>';
 }
 
 async function saveAttendance(uid, edit) {
   if (busy) return;
   busy = true;
   try {
-    let r = structuredClone(attendance[uid] || blank(uid));
+    let r = JSON.parse(JSON.stringify(attendance[uid] || blank(uid)));
     edit(r);
-    if (r.services.sunday1 || r.services.sunday2 || r.services.afternoon) r.sundayAbsenceReason = '';
+    if (r.services.sunday1 || r.services.sunday2 || r.services.afternoon) {
+      r.sundayAbsenceReason = '';
+    }
     await setDoc(attRef(uid), r);
     attendance[uid] = r;
     draw();
@@ -174,7 +308,7 @@ async function saveAttendance(uid, edit) {
 function watchAttendance(uid) {
   if (watched.has(uid)) return;
   watched.add(uid);
-  listeners.push(onSnapshot(attRef(uid), s => {
+  listeners.push(onSnapshot(attRef(uid), function(s) {
     attendance[uid] = s.exists() ? s.data() : blank(uid);
     if (page === 'home' || page === 'manage') draw();
   }, fail));
@@ -183,8 +317,8 @@ function watchAttendance(uid) {
 function watchReactions(p) {
   if (p.visibility !== 'district' || watched.has('p:' + p.id)) return;
   watched.add('p:' + p.id);
-  listeners.push(onSnapshot(collection(db, 'districts', district, 'prayers', p.id, 'prayedBy'), s => {
-    prayed[p.id] = { count: s.size, mine: s.docs.some(d => d.id === user.uid) };
+  listeners.push(onSnapshot(collection(db, 'districts', district, 'prayers', p.id, 'prayedBy'), function(s) {
+    prayed[p.id] = { count: s.size, mine: s.docs.some(function(d) { return d.id === user.uid; }) };
     if (page === 'prayers') draw();
   }, fail));
 }
@@ -193,38 +327,38 @@ function watchData() {
   stop();
   attendance = {};
   prayers = [];
-  if (member.role === 'leader') {
-    listeners.push(onSnapshot(collection(db, 'districts', district, 'members'), s => {
-      members = s.docs.map(d => ({ uid: d.id, ...d.data() }));
-      members.forEach(m => watchAttendance(m.uid));
+  if (member && member.role === 'leader') {
+    listeners.push(onSnapshot(collection(db, 'districts', district, 'members'), function(s) {
+      members = s.docs.map(function(d) { return Object.assign({ uid: d.id }, d.data()); });
+      members.forEach(function(m) { watchAttendance(m.uid); });
       draw();
     }, fail));
-    listeners.push(onSnapshot(collection(db, 'districts', district, 'joinRequests'), s => {
-      requests = s.docs.map(d => ({ uid: d.id, ...d.data() }));
+    listeners.push(onSnapshot(collection(db, 'districts', district, 'joinRequests'), function(s) {
+      requests = s.docs.map(function(d) { return Object.assign({ uid: d.id }, d.data()); });
       if (page === 'join') draw();
     }, fail));
-    listeners.push(onSnapshot(collection(db, 'districts', district, 'invites'), s => {
-      invites = s.docs.map(d => ({ id: d.id, ...d.data() }));
+    listeners.push(onSnapshot(collection(db, 'districts', district, 'invites'), function(s) {
+      invites = s.docs.map(function(d) { return Object.assign({ id: d.id }, d.data()); });
       if (page === 'join') draw();
     }, fail));
   } else {
-    members = [{ uid: user.uid, ...member }];
+    members = [Object.assign({ uid: user.uid }, member)];
     watchAttendance(user.uid);
   }
-  listeners.push(onSnapshot(query(collection(db, 'districts', district, 'prayers'), where('visibility', '==', 'district')), s => {
-    prayers = prayers.filter(p => p.visibility !== 'district').concat(s.docs.map(d => ({ id: d.id, ...d.data() })));
+  listeners.push(onSnapshot(query(collection(db, 'districts', district, 'prayers'), where('visibility', '==', 'district')), function(s) {
+    prayers = prayers.filter(function(p) { return p.visibility !== 'district'; }).concat(s.docs.map(function(d) { return Object.assign({ id: d.id }, d.data()); }));
     prayers.forEach(watchReactions);
     if (page === 'prayers') draw();
   }, fail));
-  if (member.role === 'leader') {
-    listeners.push(onSnapshot(query(collection(db, 'districts', district, 'prayers'), where('visibility', '==', 'intercession')), s => {
-      prayers = prayers.filter(p => p.visibility !== 'intercession').concat(s.docs.map(d => ({ id: d.id, ...d.data() })));
+  if (member && member.role === 'leader') {
+    listeners.push(onSnapshot(query(collection(db, 'districts', district, 'prayers'), where('visibility', '==', 'intercession')), function(s) {
+      prayers = prayers.filter(function(p) { return p.visibility !== 'intercession'; }).concat(s.docs.map(function(d) { return Object.assign({ id: d.id }, d.data()); }));
       if (page === 'prayers') draw();
     }, fail));
   } else {
-    listeners.push(onSnapshot(query(collection(db, 'districts', district, 'prayers'), where('authorUid', '==', user.uid)), s => {
-      let own = s.docs.map(d => ({ id: d.id, ...d.data() }));
-      prayers = prayers.filter(p => p.visibility === 'district' || p.authorUid !== user.uid).concat(own.filter(p => p.visibility === 'intercession'));
+    listeners.push(onSnapshot(query(collection(db, 'districts', district, 'prayers'), where('authorUid', '==', user.uid)), function(s) {
+      let own = s.docs.map(function(d) { return Object.assign({ id: d.id }, d.data()); });
+      prayers = prayers.filter(function(p) { return p.visibility === 'district' || p.authorUid !== user.uid; }).concat(own.filter(function(p) { return p.visibility === 'intercession'; }));
       if (page === 'prayers') draw();
     }, fail));
   }
@@ -232,7 +366,7 @@ function watchData() {
 
 resetAuth();
 function resetAuth() {
-  onAuthStateChanged(auth, u => {
+  onAuthStateChanged(auth, function(u) {
     stop();
     if (memberUnsub) {
       memberUnsub();
@@ -246,7 +380,7 @@ function resetAuth() {
     prayers = [];
     draw();
     if (!u) return;
-    memberUnsub = onSnapshot(memberRef(u.uid), s => {
+    memberUnsub = onSnapshot(memberRef(u.uid), function(s) {
       let was = !!member;
       member = s.exists() ? s.data() : null;
       if (member) {
@@ -254,7 +388,7 @@ function resetAuth() {
         else draw();
       } else if (was || listeners.length === 0) {
         stop();
-        listeners.push(onSnapshot(doc(db, 'districts', district, 'joinRequests', u.uid), r => {
+        listeners.push(onSnapshot(doc(db, 'districts', district, 'joinRequests', u.uid), function(r) {
           myRequest = r.exists() ? r.data() : null;
           draw();
         }, fail));
@@ -264,7 +398,7 @@ function resetAuth() {
   });
 }
 
-document.addEventListener('click', async e => {
+document.addEventListener('click', async function(e) {
   let t = e.target.closest('button');
   if (!t) return;
   if (t.id === 'login') {
@@ -313,7 +447,7 @@ document.addEventListener('click', async e => {
   if (t.dataset.approve) {
     t.disabled = true;
     try {
-      let r = requests.find(x => x.uid === t.dataset.approve);
+      let r = requests.find(function(x) { return x.uid === t.dataset.approve; });
       if (!r) throw Error('요청이 없습니다');
       let b = writeBatch(db);
       b.set(memberRef(r.uid), { name: r.name, role: 'member' });
@@ -328,7 +462,7 @@ document.addEventListener('click', async e => {
     return;
   }
   if (t.dataset.promote) {
-    let m = members.find(x => x.uid === t.dataset.promote);
+    let m = members.find(function(x) { return x.uid === t.dataset.promote; });
     if (!m || m.role !== 'member') return;
     if (!confirm(m.name + '님에게 구역장 권한을 줄까요?')) return;
     t.disabled = true;
@@ -358,7 +492,7 @@ document.addEventListener('click', async e => {
     return;
   }
   if (t.dataset.attend) {
-    saveAttendance(t.dataset.uid, r => {
+    saveAttendance(t.dataset.uid, function(r) {
       r.services[t.dataset.attend] = !r.services[t.dataset.attend];
     });
     return;
@@ -366,7 +500,8 @@ document.addEventListener('click', async e => {
   if (t.dataset.pray) {
     try {
       let r = prayRef(t.dataset.pray);
-      if (prayed[t.dataset.pray]?.mine) await deleteDoc(r);
+      let pObj = prayed[t.dataset.pray] || {};
+      if (pObj.mine) await deleteDoc(r);
       else await setDoc(r, { prayedAt: serverTimestamp() });
     } catch (err) {
       fail(err);
@@ -374,16 +509,26 @@ document.addEventListener('click', async e => {
   }
 });
 
-document.addEventListener('change', e => {
+document.addEventListener('change', function(e) {
   let t = e.target;
-  if (t.dataset.dawn) saveAttendance(t.dataset.dawn, r => { r.dawn = Math.max(0, Math.min(7, Math.trunc(Number(t.value) || 0))); });
-  if (t.dataset.reason) saveAttendance(t.dataset.reason, r => { r.sundayAbsenceReason = t.value; });
+  if (t.dataset.dawn) {
+    saveAttendance(t.dataset.dawn, function(r) {
+      r.dawn = Math.max(0, Math.min(7, Math.trunc(Number(t.value) || 0)));
+    });
+  }
+  if (t.dataset.reason) {
+    saveAttendance(t.dataset.reason, function(r) {
+      r.sundayAbsenceReason = t.value;
+    });
+  }
 });
 
-document.addEventListener('submit', async e => {
+document.addEventListener('submit', async function(e) {
   if (e.target.id === 'joinForm') {
     e.preventDefault();
-    let f = new FormData(e.target), name = String(f.get('name') || '').trim(), code = String(f.get('code') || '').trim();
+    let f = new FormData(e.target);
+    let name = String(f.get('name') || '').trim();
+    let code = String(f.get('code') || '').trim();
     if (!name || name.length > 40 || !code) return;
     let b = e.target.querySelector('[type=submit]');
     b.disabled = true;
@@ -398,7 +543,9 @@ document.addEventListener('submit', async e => {
   }
   if (e.target.id !== 'prayerForm') return;
   e.preventDefault();
-  let f = new FormData(e.target), title = String(f.get('title') || '').trim(), body = String(f.get('body') || '').trim();
+  let f = new FormData(e.target);
+  let title = String(f.get('title') || '').trim();
+  let body = String(f.get('body') || '').trim();
   if (!title || !body) return;
   let b = e.target.querySelector('[type=submit]');
   b.disabled = true;
