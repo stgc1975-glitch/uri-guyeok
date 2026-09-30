@@ -73,7 +73,7 @@ let user = null, member = null, members = [], attendance = {}, prayers = [], pra
 const memberRef = uid => doc(db, 'districts', district, 'members', uid);
 const attRef = uid => doc(db, 'districts', district, 'weeks', week, 'attendance', uid);
 const prayerRef = id => doc(db, 'districts', district, 'prayers', id);
-const prayRef = (id) => doc(db, 'districts', district, 'prayers', id, 'prayedBy', user.uid);
+const prayRef = id => doc(db, 'districts', district, 'prayers', id, 'prayedBy', user.uid);
 
 const blank = uid => ({ uid, services: Object.fromEntries(svc.map(([k]) => [k, false])), dawn: 0, sundayAbsenceReason: '' });
 
