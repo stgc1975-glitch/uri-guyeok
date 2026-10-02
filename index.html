@@ -22,7 +22,7 @@
       <div>
         <div class="row" style="gap:8px; margin-bottom:4px;">
           <div class="eyebrow" id="weekLabel"></div>
-          <select id="weekSelector" style="border:1px solid #dccaaa; border-radius:8px; padding:3px 6px; background:#fff; font-size:0.85rem; font-weight:700; color:#715b3c; cursor:pointer;"></select>
+          <select id="weekSelector" class="hide" style="border:1px solid #dccaaa; border-radius:8px; padding:3px 6px; background:#fff; font-size:0.85rem; font-weight:700; color:#715b3c; cursor:pointer;"></select>
         </div>
         <h1 id="heading">우리 구역</h1>
       </div>
@@ -173,10 +173,10 @@ function draw() {
   }
   nav();
   
-  $('brandTitle').textContent = t.brandTitle;
-  $('brandSub').textContent = t.brandSub;
-  $('loadingText').textContent = t.loading;
-  $('account').textContent = t.logout;
+  if ($('brandTitle'))$('brandTitle').textContent = t.brandTitle;
+  if ($('brandSub'))$('brandSub').textContent = t.brandSub;
+  if ($('loadingText'))$('loadingText').textContent = t.loading;
+  if ($('account'))$('account').textContent = t.logout;
 
   let ws = $('weekSelector');
   if (ws) {
@@ -689,6 +689,7 @@ document.addEventListener('submit', function(e) {
   if (e.target.id === 'joinForm') {
     e.preventDefault();
     let f = new FormData(e.target);
+    let weekSelectorElem = $('weekSelector');
     let name = String(f.get('name') || '').trim();
     let code = String(f.get('code') || '').trim();
     if (!name || name.length > 40 || !code) return;
