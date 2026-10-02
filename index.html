@@ -26,7 +26,10 @@
         </div>
         <h1 id="heading">우리 소그룹</h1>
       </div>
-      <button id="account" class="ghost hide">로그아웃</button>
+      <div style="display:flex; gap:8px; align-items:center;">
+        <button id="langToggle" class="secondary" style="padding:6px 10px; font-size:0.85rem; cursor:pointer;">English</button>
+        <button id="account" class="ghost hide">로그아웃</button>
+      </div>
     </header>
     <div id="message" role="status" aria-live="polite"></div>
     <div id="root">
@@ -54,9 +57,9 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 const district = 'songtan-01';
 
-// 브라우저 언어 감지 (영어 기기면 확실하게 영문 적용)
-const userLang = navigator.language || navigator.userLanguage || 'ko';
-const isEnglish = userLang.toLowerCase().startsWith('en');
+// 언어 상태 관리 (로컬스토리지에 저장하여 한번 누르면 계속 유지됨)
+let currentLang = localStorage.getItem('app_lang') || 'ko';
+let isEnglish = (currentLang === 'en');
 
 const dict = {
   ko: {
@@ -78,18 +81,23 @@ const dict = {
     reasons: ['Personal', 'Health', 'Travel', 'Work', 'Long-term Absence', 'Other']
   }
 };
-const t = isEnglish ? dict.en : dict.ko;
+let t = dict[currentLang];
 
-const svc = [
-  ['sunday1', t.sunday1],
-  ['sunday2', t.sunday2],
-  ['afternoon', t.afternoon],
-  ['wednesday', t.wednesday],
-  ['friday', t.friday],
-  ['district', t.district],
-  ['monthly', t.monthly]
-];
-const reasons = t.reasons;
+let svc = [];
+function updateSvc() {
+  t = dict[currentLang];
+  svc = [
+    ['sunday1', t.sunday1],
+    ['sunday2', t.sunday2],
+    ['afternoon', t.afternoon],
+    ['wednesday', t.wednesday],
+    ['friday', t.friday],
+    ['district', t.district],
+    ['monthly', t.monthly]
+  ];
+}
+updateSvc();
+
 const $ = function(id) { return document.getElementById(id); };
 const esc = function(v) {
   return String(v === undefined || v === null ? '' : v).replace(/[&<>"']/g, function(c) {
@@ -172,12 +180,14 @@ function draw() {
   if ((page === 'manage' || page === 'join') && (!member || member.role !== 'leader')) {
     page = 'home';
   }
+  updateSvc();
   nav();
   
   if ($('brandTitle'))$('brandTitle').textContent = t.brandTitle;
   if ($('brandSub'))$('brandSub').textContent = t.brandSub;
   if ($('loadingText'))$('loadingText').textContent = t.loading;
   if ($('account'))$('account').textContent = t.logout;
+  if ($('langToggle'))$('langToggle').textContent = (currentLang === 'ko') ? 'English' : '한국어';
 
   let ws = $('weekSelector');
   if (ws) {
@@ -578,6 +588,16 @@ document.addEventListener('change', function(e) {
 document.addEventListener('click', function(e) {
   let tBtn = e.target.closest('button');
   if (!tBtn) return;
+
+  // 상단 언어 전환 버튼 클릭 시 (한국어 <-> 영어 실시간 토글)
+  if (tBtn.id === 'langToggle') {
+    currentLang = (currentLang === 'ko') ? 'en' : 'ko';
+    localStorage.setItem('app_lang', currentLang);
+    isEnglish = (currentLang === 'en');
+    updateSvc();
+    draw();
+    return;
+  }
 
   if (tBtn.id === 'toggleCloseWeek') {
     let nextStatus = !weekMeta.isClosed;
