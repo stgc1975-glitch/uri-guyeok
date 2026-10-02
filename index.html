@@ -39,7 +39,7 @@
 <script type="module">
 import {initializeApp} from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js';
 import {getAuth, GoogleAuthProvider, onAuthStateChanged, signInWithPopup, signOut} from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js';
-import {getFirestore, doc, collection, getDoc, setDoc, addDoc, deleteDoc, onSnapshot, query, where, serverTimestamp, writeBatch, getDocs} from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js';
+import {getFirestore, doc, collection, getDoc, setDoc, addDoc, deleteDoc, onSnapshot, query, where, serverTimestamp, writeBatch} from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js';
 
 const app = initializeApp({
   apiKey: 'AIzaSyDrh2v8hqgrGaF8fOn0xisMLH8GfW2oozc',
@@ -73,7 +73,7 @@ const dict = {
     logout: "Sign Out", loginBtn: "Sign in with Google",
     home: "My Attendance", prayers: "Pray Together", form: "Add Prayer", manage: "Member Attendance", join: "Join Requests",
     homeHeading: "Attendance Record", manageHeading: "Member Attendance Management", joinHeading: "Manage Requests", prayerHeading: "Pray Together", formHeading: "New Prayer Request", defaultHeading: "Cell Group",
-    sunday1: "1st Service", sunday2: "2nd Service", afternoon: "Afternoon", wednesday: "Wednesday", friday: "Friday", district: "Cell Group", monthly: "Monthly",
+    sunday1: "1st Service", sunday2: "2nd Service", afternoon: "Afternoon", wednesday: "Wednesday", friday: "Friday", district: "cell group", monthly: "Monthly",
     reasons: ['Personal', 'Health', 'Travel', 'Work', 'Long-term Absence', 'Other']
   }
 };
@@ -96,7 +96,6 @@ const esc = function(v) {
   });
 };
 
-// 최근 8주간의 목록 생성 (지난 주차 조회용)
 const now = new Date();
 const currentMon = new Date(now.getFullYear(), now.getMonth(), now.getDate() - (now.getDay() + 6) % 7);
 const weeksList = [];
@@ -108,8 +107,8 @@ for (let i = 0; i < 8; i++) {
   weeksList.push({ id: wId, label: wLabel });
 }
 
-let selectedWeek = weeksList[0].id; // 기본은 이번 주
-let weekMeta = { isClosed: false }; // 현재 주의 마감 상태
+let selectedWeek = weeksList[0].id;
+let weekMeta = { isClosed: false };
 
 let user = null, member = null, members = [], attendance = {}, prayers = [], prayed = {}, page = 'home', listeners = [], memberUnsub = null, metaUnsub = null, watched = new Set(), busy = false, requests = [], invites = [], myRequest = null;
 
@@ -158,7 +157,7 @@ function nav() {
   }
   ['nav', 'mobileNav'].forEach(function(id) {
     let container = $(id);
-    if (!container) continue;
+    if (!container) return;
     container.innerHTML = tabs.map(function(item) {
       let k = item[0], v = item[1];
       let activeClass = (page === k) ? 'active' : '';
@@ -179,7 +178,6 @@ function draw() {
   $('loadingText').textContent = t.loading;
   $('account').textContent = t.logout;
 
-  // 주차 선택 드롭다운 렌더링
   let ws = $('weekSelector');
   if (ws) {
     ws.innerHTML = weeksList.map(function(w) {
@@ -318,7 +316,6 @@ function fields(r, uid) {
   return html;
 }
 
-// 구역장용 마감 제어 배너 HTML 생성
 function getLeaderCloseBanner() {
   if (!member || member.role !== 'leader') return '';
   let isClosed = weekMeta.isClosed;
@@ -429,28 +426,27 @@ function form() {
   return '<form class="card" id="prayerForm"><h2>' + formHeader + '</h2><label class="field">' + titleLabel + '<input name="title" maxlength="60" required></label><label class="field">' + bodyLabel + '<textarea name="body" maxlength="2000" required></textarea></label><label class="field">' + scopeLabel + '<select name="visibility"><option value="district">' + optDistrict + '</option><option value="intercession">' + optIntercession + '</option></select></label><p class="small">' + formTip + '</p><div class="row"><button type="button" class="secondary" data-page="prayers">' + cancelText + '</button><button class="primary" type="submit">' + submitText + '</button></div></form>';
 }
 
-async function saveAttendance(uid, edit) {
+function saveAttendance(uid, edit) {
   if (busy) return;
   if (weekMeta.isClosed && member.role !== 'leader') {
     flash(isEnglish ? "This week is closed." : "마감된 주차입니다.", true);
     return;
   }
   busy = true;
-  try {
-    let r = JSON.parse(JSON.stringify(attendance[uid] || blank(uid)));
-    edit(r);
-    if (r.services.sunday1 || r.services.sunday2 || r.services.afternoon) {
-      r.sundayAbsenceReason = '';
-    }
-    await setDoc(attRef(uid), r);
+  let r = JSON.parse(JSON.stringify(attendance[uid] || blank(uid)));
+  edit(r);
+  if (r.services.sunday1 || r.services.sunday2 || r.services.afternoon) {
+    r.sundayAbsenceReason = '';
+  }
+  setDoc(attRef(uid), r).then(function() {
     attendance[uid] = r;
     draw();
-  } catch (e) {
+    busy = false;
+  }).catch(function(e) {
     fail(e);
     draw();
-  } finally {
     busy = false;
-  }
+  });
 }
 
 function watchAttendance(uid) {
@@ -471,13 +467,11 @@ function watchReactions(p) {
   }, fail));
 }
 
-// 주차 데이터 및 마감 메타데이터 감시
 function watchData() {
   stop();
   attendance = {};
   prayers = [];
 
-  // 1. 해당 주차 마감 메타데이터 실시간 감시
   metaUnsub = onSnapshot(weekMetaRef(), function(s) {
     weekMeta = s.exists() ? s.data() : { isClosed: false };
     if (page === 'home' || page === 'manage') draw();
@@ -556,7 +550,6 @@ function resetAuth() {
   });
 }
 
-// 주차 변경 이벤트 처리
 document.addEventListener('change', function(e) {
   let target = e.target;
   if (target.id === 'weekSelector') {
@@ -581,7 +574,6 @@ document.addEventListener('click', function(e) {
   let tBtn = e.target.closest('button');
   if (!tBtn) return;
 
-  // 구역장 마감 토글 버튼 클릭 처리
   if (tBtn.id === 'toggleCloseWeek') {
     let nextStatus = !weekMeta.isClosed;
     setDoc(weekMetaRef(), { isClosed: nextStatus }, { merge: true }).then(function() {
