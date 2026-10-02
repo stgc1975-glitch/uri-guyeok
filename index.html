@@ -1,11 +1,10 @@
 <!doctype html>
-<html lang="ko" translate="no">
+<html lang="ko">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="google" content="notranslate">
-<title>우리 구역 · 예배와 기도</title>
-<meta name="description" content="구역 예배 출석과 기도제목을 함께 기록합니다">
+<title>우리 소그룹 · 예배와 기도</title>
+<meta name="description" content="소그룹 예배 출석과 기도제목을 함께 기록합니다">
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='18' fill='%23d8a852'/%3E%3Cpath d='M32 12v40M20 25h24' stroke='white' stroke-width='6' stroke-linecap='round'/%3E%3C/svg%3E">
 <style>
 :root{font:16px system-ui,-apple-system,'Noto Sans KR',sans-serif;color:#504434;background:#fffaf0}*{box-sizing:border-box}body{margin:0}button,input,textarea,select{font:inherit}button{cursor:pointer}button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible{outline:3px solid #9d763b;outline-offset:2px}.shell{max-width:1040px;margin:auto;min-height:100vh;display:grid;grid-template-columns:205px minmax(0,1fr)}aside{padding:30px 18px;background:#fffdf8;border-right:1px solid #f0e5d1}.brand{font-size:1.24rem;font-weight:800}.brand b{display:inline-grid;place-items:center;background:#e8ba61;color:white;border-radius:10px;width:34px;height:34px;margin-right:8px}.small{font-size:.87rem;color:#766d60;line-height:1.5}.nav{display:grid;gap:6px;margin-top:34px}.nav button{border:0;text-align:left;background:transparent;color:#715b3c;padding:12px 13px;border-radius:12px;font-weight:700}.nav button.active{background:#fff0ce}main{padding:30px clamp(18px,5vw,48px) 90px;min-width:0}header{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:22px}h1{font-size:1.65rem;letter-spacing:-.05em;margin:4px 0}h2{font-size:1.17rem;margin:0 0 16px}h3{font-size:1rem}.eyebrow{font-size:.88rem;color:#93671e;font-weight:800}.card{background:#fff;border:1px solid #f0e3cb;border-radius:22px;padding:22px;margin-bottom:16px;box-shadow:0 8px 24px #6445120e}.warm{background:#fff0c9}.muted{color:#766b5e;line-height:1.6}.row{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}.primary,.secondary,.ghost{border-radius:12px;font-weight:750;padding:10px 14px}.primary{background:#ae7d32;border:1px solid #ae7d32;color:white}.secondary{background:white;border:1px solid #d9c297;color:#715129}.ghost{border:0;background:transparent;color:#815c26}.week-grid{display:flex;flex-wrap:wrap;gap:8px}.check{border:1px solid #dccaaa;background:white;color:#645849;border-radius:11px;min-width:67px;padding:10px 13px;font-weight:750}.check.on{background:#f8dc94;border-color:#e8c566;color:#5c421b}.field{display:grid;gap:7px;margin:14px 0;color:#5d4c34;font-weight:700}.field input,.field textarea,.field select{border:1px solid #ddcaaa;border-radius:12px;padding:11px 13px;width:100%;background:#fff;color:#443b2e}.field textarea{min-height:110px;resize:vertical}.subgrid{display:grid;grid-template-columns:1fr 1fr;gap:15px}.number{max-width:115px}.notice{border-radius:13px;padding:12px 14px;background:#edf7e9;color:#47653c;margin-bottom:16px}.notice.error{background:#fff0e9;color:#984b36}.person,.prayer{border-top:1px solid #f0e5d3;padding:17px 0}.person:first-child,.prayer:first-child{border-top:0}.person strong{display:block;margin-bottom:12px}.prayer p{white-space:pre-wrap;line-height:1.6}.tag{border-radius:30px;background:#fff0cf;color:#785827;padding:5px 10px;font-size:.81rem;font-weight:800}.center{max-width:520px;margin:8vh auto}.code{font-family:ui-monospace,monospace;word-break:break-all;background:#fff5e1;padding:10px;border-radius:8px}.hide{display:none!important}.mobile-nav{display:none}@media(max-width:700px){.shell{display:block}aside{padding:15px 18px;border-right:0;border-bottom:1px solid #f0e5d1}.nav{display:none}main{padding:23px 16px 92px}.mobile-nav{position:fixed;bottom:0;left:0;right:0;z-index:5;display:flex;justify-content:space-around;background:#fffdf8;border-top:1px solid #e9dac0;padding:7px}.mobile-nav button{border:0;background:transparent;color:#705938;padding:10px 6px;font-weight:700}.subgrid{grid-template-columns:1fr}.card{padding:18px}}
@@ -55,8 +54,9 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 const district = 'songtan-01';
 
-const userLang = navigator.language || navigator.userLanguage;
-const isEnglish = userLang.toLowerCase().startsWith('en');
+// 브라우저 언어 감지 강화 (시스템 언어가 영어로 시작하거나 ko가 아니면 무조건 영어 처리)
+const langs = navigator.languages || [navigator.language || navigator.userLanguage || 'ko'];
+const isEnglish = !langs.some(function(l) { return l.toLowerCase().startsWith('ko'); });
 
 const dict = {
   ko: {
