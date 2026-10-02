@@ -14,7 +14,7 @@
 <body>
 <div class="shell">
   <aside>
-    <div class="brand"><b id="brandIcon">✚</b><span id="brandTitle">우리 구역</span></div>
+    <div class="brand"><b id="brandIcon">✚</b><span id="brandTitle">우리 소그룹</span></div>
     <div class="small" style="margin:9px 4px" id="brandSub">예배와 기도</div>
     <nav id="nav" class="nav"></nav>
   </aside>
@@ -25,7 +25,7 @@
           <div class="eyebrow" id="weekLabel"></div>
           <select id="weekSelector" class="hide" style="border:1px solid #dccaaa; border-radius:8px; padding:3px 6px; background:#fff; font-size:0.85rem; font-weight:700; color:#715b3c; cursor:pointer;"></select>
         </div>
-        <h1 id="heading">우리 구역</h1>
+        <h1 id="heading">우리 소그룹</h1>
       </div>
       <button id="account" class="ghost hide">로그아웃</button>
     </header>
@@ -60,12 +60,12 @@ const isEnglish = userLang.toLowerCase().startsWith('en');
 
 const dict = {
   ko: {
-    brandTitle: "우리 구역", brandSub: "예배와 기도",
+    brandTitle: "우리 소그룹", brandSub: "예배와 기도",
     loading: "불러오는 중입니다.",
     logout: "로그아웃", loginBtn: "Google로 로그인",
-    home: "내 출석", prayers: "함께 기도", form: "기도 등록", manage: "구역원 출석", join: "가입 관리",
-    homeHeading: "나의 출석 기록", manageHeading: "구역원 출석 관리", joinHeading: "가입 관리", prayerHeading: "함께 기도해요", formHeading: "기도제목 등록", defaultHeading: "우리 구역",
-    sunday1: "1부", sunday2: "2부", afternoon: "오후", wednesday: "수요", friday: "금요", district: "구역", monthly: "월삭",
+    home: "내 출석", prayers: "함께 기도", form: "기도 등록", manage: "소그룹원 출석", join: "가입 관리",
+    homeHeading: "나의 출석 기록", manageHeading: "소그룹원 출석 관리", joinHeading: "가입 관리", prayerHeading: "함께 기도해요", formHeading: "기도제목 등록", defaultHeading: "우리 소그룹",
+    sunday1: "1부", sunday2: "2부", afternoon: "오후", wednesday: "수요일", friday: "금요일", district: "소그룹", monthly: "월삭",
     reasons: ['개인사정', '건강', '여행', '직장', '장기결석', '기타']
   },
   en: {
@@ -218,22 +218,22 @@ function draw() {
   if (!rootElem) return;
 
   if (!user) {
-    let loginCardTitle = isEnglish ? "Record Together as a Cell Group" : "우리 구역만 함께 기록해요";
+    let loginCardTitle = isEnglish ? "Record Together as a Cell Group" : "우리 소그룹만 함께 기록해요";
     let loginCardHeader = isEnglish ? "Share Worship & Prayer" : "예배와 기도를 나눠요";
     let loginCardDesc = isEnglish ? "Sign in with your Google account to check your attendance." : "Google 계정으로 로그인하면 본인의 출석을 체크할 수 있습니다.";
     rootElem.innerHTML = '<section class="card warm center"><div class="eyebrow">' + loginCardTitle + '</div><h1>' + loginCardHeader + '</h1><p class="muted">' + loginCardDesc + '</p><button class="primary" id="login">' + t.loginBtn + '</button></section>';
     return;
   }
   if (!member) {
-    if (headingElem) headingElem.textContent = isEnglish ? "Cell Group Registration" : "구역원 가입";
+    if (headingElem) headingElem.textContent = isEnglish ? "Cell Group Registration" : "소그룹원 가입";
     if (myRequest) {
       let reqTitle = isEnglish ? "Join Request Sent" : "가입 요청을 보냈어요";
-      let reqDesc = isEnglish ? "Once the leader approves, you can record attendance right here." : "구역장이 승인하면 이 화면에서 바로 출석을 기록할 수 있어요.";
+      let reqDesc = isEnglish ? "Once the leader approves, you can record attendance right here." : "소그룹장이 승인하면 이 화면에서 바로 출석을 기록할 수 있어요.";
       let reqName = isEnglish ? "Requested Name: " : "요청 이름: ";
       rootElem.innerHTML = '<section class="card center"><h2>' + reqTitle + '</h2><p class="muted">' + reqDesc + '</p><p class="small">' + reqName + esc(myRequest.name) + '</p></section>';
     } else {
-      let formTitle = isEnglish ? "Cell Group Join Request" : "우리 구역 가입 요청";
-      let formDesc = isEnglish ? "Enter the participation code received from your leader. Available after approval." : "구역장에게 받은 참여코드를 입력하세요. 구역장 승인 후 이용할 수 있어요.";
+      let formTitle = isEnglish ? "Cell Group Join Request" : "우리 소그룹 가입 요청";
+      let formDesc = isEnglish ? "Enter the participation code received from your leader. Available after approval." : "소그룹장에게 받은 참여코드를 입력하세요. 소그룹장 승인 후 이용할 수 있어요.";
       let nameLabel = isEnglish ? "Name" : "이름";
       let codeLabel = isEnglish ? "Participation Code" : "참여코드";
       let btnText = isEnglish ? "Request to Join" : "가입 요청";
@@ -254,17 +254,17 @@ function joinManage() {
   let copyText = isEnglish ? "Copy" : "복사";
   let revokeText = isEnglish ? "Revoke Code" : "코드 폐기";
   let newCodeText = isEnglish ? "Create New Code" : "새 참여코드 만들기";
-  let invitesHeader = isEnglish ? "Cell Group Join" : "구역원 가입";
+  let invitesHeader = isEnglish ? "Cell Group Join" : "소그룹원 가입";
   let invitesDesc = isEnglish ? "Approve members who request to join with the participation code." : "참여코드를 전달받은 사람이 가입을 요청하면 이곳에서 승인하세요.";
   let requestsHeader = isEnglish ? "Join Requests" : "가입 요청";
   let noReqText = isEnglish ? "No pending requests." : "대기 중인 요청이 없어요.";
-  let approveText = isEnglish ? "Approve Member" : "구역원으로 승인";
+  let approveText = isEnglish ? "Approve Member" : "소그룹원으로 승인";
   let rejectText = isEnglish ? "Reject" : "거절";
-  let leaderPermHeader = isEnglish ? "Leader Permissions" : "구역장 권한";
-  let leaderPermDesc = isEnglish ? "You can grant leader permissions after approving members." : "구역원을 승인한 뒤 필요할 때 구역장 권한을 줄 수 있어요.";
-  let promoteText = isEnglish ? "Make Leader" : "구역장 권한 주기";
-  let leaderText = isEnglish ? "Leader" : "구역장";
-  let memberText = isEnglish ? "Member" : "구역원";
+  let leaderPermHeader = isEnglish ? "Leader Permissions" : "소그룹장 권한";
+  let leaderPermDesc = isEnglish ? "You can grant leader permissions after approving members." : "소그룹원을 승인한 뒤 필요할 때 소그룹장 권한을 줄 수 있어요.";
+  let promoteText = isEnglish ? "Make Leader" : "소그룹장 권한 주기";
+  let leaderText = isEnglish ? "Leader" : "소그룹장";
+  let memberText = isEnglish ? "Member" : "소그룹원";
 
   let invitesHtml = invites.map(function(x) {
     return '<div class="row" style="margin-top:12px"><span class="code">' + esc(x.id) + '</span><button class="secondary" data-copy-code="' + esc(x.id) + '">' + copyText + '</button><button class="ghost" data-remove-code="' + esc(x.id) + '">' + revokeText + '</button></div>';
@@ -326,8 +326,8 @@ function getLeaderCloseBanner() {
   let isClosed = weekMeta.isClosed;
   let bannerBg = isClosed ? 'background:#fff0e9; border:1px solid #f5c2b8;' : 'background:#edf7e9; border:1px solid #c8e6c9;';
   let bannerText = isClosed 
-    ? (isEnglish ? '🔒 This week is currently CLOSED for member edits.' : '🔒 현재 이 주차는 구역원 출석 수정이 마감된 상태입니다.')
-    : (isEnglish ? '🟢 This week is OPEN for attendance recording.' : '🟢 현재 구역원들이 출석을 기록할 수 있는 열린 상태입니다.');
+    ? (isEnglish ? '🔒 This week is currently CLOSED for member edits.' : '🔒 현재 이 주차는 소그룹원 출석 수정이 마감된 상태입니다.')
+    : (isEnglish ? '🟢 This week is OPEN for attendance recording.' : '🟢 현재 소그룹원들이 출석을 기록할 수 있는 열린 상태입니다.');
   let btnText = isClosed 
     ? (isEnglish ? 'Open Attendance' : '마감 해제하기') 
     : (isEnglish ? 'Close Attendance' : '이번 주 출석 마감하기');
@@ -338,7 +338,7 @@ function getLeaderCloseBanner() {
 
 function home() {
   let r = attendance[user.uid] || blank(user.uid);
-  let userName = (member && member.name) ? member.name : (user.displayName ? user.displayName : (isEnglish ? 'Member' : '구역원'));
+  let userName = (member && member.name) ? member.name : (user.displayName ? user.displayName : (isEnglish ? 'Member' : '소그룹원'));
   let count = 0;
   if (r.services) {
     svc.forEach(function(item) {
@@ -358,20 +358,20 @@ function home() {
   let dawnCountSuffix = isEnglish ? " times" : "회";
 
   let closedNotice = (weekMeta.isClosed && member.role !== 'leader') 
-    ? '<div class="notice error" style="margin-bottom:16px;">' + (isEnglish ? 'Attendance for this week is closed by the leader.' : '구역장에 의해 마감된 주차여서 출석 수정이 불가합니다.') + '</div>' 
+    ? '<div class="notice error" style="margin-bottom:16px;">' + (isEnglish ? 'Attendance for this week is closed by the leader.' : '소그룹장에 의해 마감된 주차여서 출석 수정이 불가합니다.') + '</div>' 
     : '';
 
   return getLeaderCloseBanner() + closedNotice + '<section class="card warm"><div class="eyebrow">' + esc(userName) + titleSuffix + '</div><h2 style="margin:9px 0">' + checkHeader + '</h2><div class="small">' + checkDesc + '</div></section><section class="card"><h2>' + attHeader + '</h2>' + checks(r, user.uid) + fields(r, user.uid) + '</section><section class="card"><h2>' + recHeader + '</h2><div class="row"><span>' + attCountText + count + attCountSuffix + '</span><strong>' + dawnCountText + dawnVal + dawnCountSuffix + '</strong></div></section>';
 }
 
 function manage() {
-  let noMemberText = isEnglish ? "No registered members." : "등록된 구역원이 없어요.";
+  let noMemberText = isEnglish ? "No registered members." : "등록된 소그룹원이 없어요.";
   let manageHeader = isEnglish ? "Member Attendance Overview" : "한 화면에서 출석 확인";
-  let manageDesc = isEnglish ? "Check-ins made by members directly will appear here. Tap buttons again to uncheck." : "구역원이 직접 체크한 내용도 여기 표시됩니다. 버튼을 다시 누르면 해제돼요.";
+  let manageDesc = isEnglish ? "Check-ins made by members directly will appear here. Tap buttons again to uncheck." : "소그룹원이 직접 체크한 내용도 여기 표시됩니다. 버튼을 다시 누르면 해제돼요.";
 
   let membersCards = members.map(function(m) {
     let r = attendance[m.uid] || blank(m.uid);
-    let mName = m.name ? m.name : (isEnglish ? 'Member' : '구역원');
+    let mName = m.name ? m.name : (isEnglish ? 'Member' : '소그룹원');
     return '<div class="person"><strong>' + esc(mName) + '</strong>' + checks(r, m.uid) + fields(r, m.uid) + '</div>';
   }).join('');
   if (!membersCards) membersCards = '<p class="muted">' + noMemberText + '</p>';
@@ -386,13 +386,13 @@ function prayerList() {
 
   let noPrayerText = isEnglish ? "No prayer requests yet." : "아직 등록된 기도제목이 없어요.";
   let writeBtnText = isEnglish ? "Write Prayer" : "기도제목 쓰기";
-  let tagCell = isEnglish ? "Cell Group" : "우리 구역";
+  let tagCell = isEnglish ? "Cell Group" : "우리 소그룹";
   let tagIntercession = isEnglish ? "Intercession Team Request" : "중보기도팀 전달 요청";
   let prayBtnText = isEnglish ? "Praying Together" : "함께 기도해요";
   let cancelPrayText = isEnglish ? "Cancel Prayer" : "기도 표시 취소";
-  let leaderOnlyText = isEnglish ? "Visible to leader only" : "현재 구역장에게만 보이는 요청";
+  let leaderOnlyText = isEnglish ? "Visible to leader only" : "현재 소그룹장에게만 보이는 요청";
   let subInfoText = isEnglish ? "Once per person · Tap again to cancel" : "한 사람당 한 번 · 다시 누르면 취소";
-  let defaultMemberName = isEnglish ? "Member" : "구역원";
+  let defaultMemberName = isEnglish ? "Member" : "소그룹원";
 
   let itemsHtml = list.map(function(p) {
     let authorObj = members.find(function(m) { return m.uid === p.authorUid; });
@@ -422,9 +422,9 @@ function form() {
   let titleLabel = isEnglish ? "Title" : "제목";
   let bodyLabel = isEnglish ? "Content" : "내용";
   let scopeLabel = isEnglish ? "Sharing Scope" : "공유 범위";
-  let optDistrict = isEnglish ? "Share with Cell Group" : "우리 구역에 공유";
-  let optIntercession = isEnglish ? "Intercession Team Request (Leader only)" : "중보기도팀 전달 요청 (구역장만 확인하기)";
-  let formTip = isEnglish ? "Requests are visible only to the leader. The leader will pass them to the intercession team." : "요청은 구역장에게만 보입니다. 구역장이 직접 중보기도팀에 전달합니다.";
+  let optDistrict = isEnglish ? "Share with Cell Group" : "우리 소그룹에 공유";
+  let optIntercession = isEnglish ? "Intercession Team Request (Leader only)" : "중보기도팀 전달 요청 (소그룹장만 확인하기)";
+  let formTip = isEnglish ? "Requests are visible only to the leader. The leader will pass them to the intercession team." : "요청은 소그룹장에게만 보입니다. 소그룹장이 직접 중보기도팀에 전달합니다.";
   let cancelText = isEnglish ? "Cancel" : "취소";
   let submitText = isEnglish ? "Submit" : "등록";
 
@@ -601,7 +601,7 @@ document.addEventListener('click', function(e) {
     tBtn.disabled = true;
     let code = crypto.randomUUID();
     setDoc(doc(db, 'districts', district, 'invites', code), { createdBy: user.uid, createdAt: serverTimestamp() }).then(function() {
-      flash(isEnglish ? "Participation code created. Share it with members." : "참여코드를 만들었어요. 복사해서 구역원에게 전달하세요.");
+      flash(isEnglish ? "Participation code created. Share it with members." : "참여코드를 만들었어요. 복사해서 소그룹원에게 전달하세요.");
       tBtn.disabled = false;
     }).catch(function(err) {
       fail(err);
@@ -636,7 +636,7 @@ document.addEventListener('click', function(e) {
     b.set(memberRef(r.uid), { name: r.name, role: 'member' });
     b.delete(doc(db, 'districts', district, 'joinRequests', r.uid));
     b.commit().then(function() {
-      flash(r.name + (isEnglish ? " has been approved as a member." : "님을 구역원으로 승인했어요."));
+      flash(r.name + (isEnglish ? " has been approved as a member." : "님을 소그룹원으로 승인했어요."));
       tBtn.disabled = false;
     }).catch(function(err) {
       fail(err);
@@ -647,12 +647,12 @@ document.addEventListener('click', function(e) {
   if (tBtn.dataset.promote) {
     let m = members.find(function(x) { return x.uid === tBtn.dataset.promote; });
     if (!m || m.role !== 'member') return;
-    let confirmMsg = isEnglish ? "Do you want to grant leader permissions to " + m.name + "?" : m.name + "님에게 구역장 권한을 줄까요?";
+    let confirmMsg = isEnglish ? "Do you want to grant leader permissions to " + m.name + "?" : m.name + "님에게 소그룹장 권한을 줄까요?";
     if (!confirm(confirmMsg)) return;
     tBtn.disabled = true;
     let docRef = memberRef(m.uid);
     setDoc(docRef, { role: 'leader' }, { merge: true }).then(function() {
-      flash(m.name + (isEnglish ? " has been granted leader permissions." : "님에게 구역장 권한을 주었어요."));
+      flash(m.name + (isEnglish ? " has been granted leader permissions." : "님에게 소그룹장 권한을 주었어요."));
       tBtn.disabled = false;
     }).catch(function(err) {
       fail(err);
