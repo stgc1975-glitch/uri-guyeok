@@ -57,7 +57,6 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 const district = 'songtan-01';
 
-// 언어 상태 관리 (로컬스토리지에 저장하여 한번 누르면 계속 유지됨)
 let currentLang = localStorage.getItem('app_lang') || 'ko';
 let isEnglish = (currentLang === 'en');
 
@@ -119,7 +118,7 @@ for (let i = 0; i < 8; i++) {
 let selectedWeek = weeksList[0].id;
 let weekMeta = { isClosed: false };
 
-let user = null, member = null, members = [], attendance = {}, prayers = [], prayed = {}, page = 'home', listeners = [], memberUnsub = null, metaUnsub = null, watched = new Set(), busy = false, requests = [], invites = [], myRequest = null;
+let user = null, member = null, memberLoaded = false, members = [], attendance = {}, prayers = [], prayed = {}, page = 'home', listeners = [], memberUnsub = null, metaUnsub = null, watched = new Set(), busy = false, requests = [], invites = [], myRequest = null;
 
 const memberRef = function(uid) { return doc(db, 'districts', district, 'members', uid); };
 const attRef = function(uid) { return doc(db, 'districts', district, 'weeks', selectedWeek, 'attendance', uid); };
@@ -234,6 +233,13 @@ function draw() {
     rootElem.innerHTML = '<section class="card warm center"><div class="eyebrow">' + loginCardTitle + '</div><h1>' + loginCardHeader + '</h1><p class="muted">' + loginCardDesc + '</p><button class="primary" id="login">' + t.loginBtn + '</button></section>';
     return;
   }
+
+  // 멤버 정보가 아직 로딩 중일 때는 깜빡임이나 가입폼이 뜨지 않도록 로딩 표시
+  if (!memberLoaded) {
+    rootElem.innerHTML = '<section class="card center">' + t.loading + '</section>';
+    return;
+  }
+
   if (!member) {
     if (headingElem) headingElem.textContent = isEnglish ? "Cell Group Registration" : "소그룹원 가입";
     if (myRequest) {
@@ -541,6 +547,7 @@ function resetAuth() {
     }
     user = u;
     member = null;
+    memberLoaded = false;
     myRequest = null;
     members = [];
     attendance = {};
@@ -550,10 +557,11 @@ function resetAuth() {
     memberUnsub = onSnapshot(memberRef(u.uid), function(s) {
       let was = !!member;
       member = s.exists() ? s.data() : null;
+      memberLoaded = true; // 멤버 조회 완료 플래그 설정
       if (member) {
         if (!was) watchData();
         else draw();
-      } else if (was || listeners.length === 0) {
+      } else {
         stop();
         listeners.push(onSnapshot(doc(db, 'districts', district, 'joinRequests', u.uid), function(r) {
           myRequest = r.exists() ? r.data() : null;
@@ -589,7 +597,6 @@ document.addEventListener('click', function(e) {
   let tBtn = e.target.closest('button');
   if (!tBtn) return;
 
-  // 상단 언어 전환 버튼 클릭 시 (한국어 <-> 영어 실시간 토글)
   if (tBtn.id === 'langToggle') {
     currentLang = (currentLang === 'ko') ? 'en' : 'ko';
     localStorage.setItem('app_lang', currentLang);
