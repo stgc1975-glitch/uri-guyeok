@@ -80,11 +80,11 @@ const dict = {
     reasons: ['Personal', 'Health', 'Travel', 'Work', 'Long-term Absence', 'Other']
   }
 };
-let t = dict[currentLang];
 
-let svc = [];
-function updateSvc() {
+let t, svc, reasons;
+function updateLangConfig() {
   t = dict[currentLang];
+  isEnglish = (currentLang === 'en');
   svc = [
     ['sunday1', t.sunday1],
     ['sunday2', t.sunday2],
@@ -94,8 +94,9 @@ function updateSvc() {
     ['district', t.district],
     ['monthly', t.monthly]
   ];
+  reasons = t.reasons;
 }
-updateSvc();
+updateLangConfig();
 
 const $ = function(id) { return document.getElementById(id); };
 const esc = function(v) {
@@ -136,7 +137,7 @@ function flash(msg, bad) {
   if (msgElem) {
     msgElem.innerHTML = '<div class="notice ' + (isBad ? 'error' : '') + '">' + esc(msg) + '</div>';
     setTimeout(function() {
-      if ($('message'))$('message').innerHTML = '';
+      if ($('message')) $('message').innerHTML = '';
     }, 6000);
   }
 }
@@ -179,14 +180,14 @@ function draw() {
   if ((page === 'manage' || page === 'join') && (!member || member.role !== 'leader')) {
     page = 'home';
   }
-  updateSvc();
+  updateLangConfig();
   nav();
   
-  if ($('brandTitle'))$('brandTitle').textContent = t.brandTitle;
-  if ($('brandSub'))$('brandSub').textContent = t.brandSub;
-  if ($('loadingText'))$('loadingText').textContent = t.loading;
-  if ($('account'))$('account').textContent = t.logout;
-  if ($('langToggle'))$('langToggle').textContent = (currentLang === 'ko') ? 'English' : '한국어';
+  if ($('brandTitle')) $('brandTitle').textContent = t.brandTitle;
+  if ($('brandSub')) $('brandSub').textContent = t.brandSub;
+  if ($('loadingText')) $('loadingText').textContent = t.loading;
+  if ($('account')) $('account').textContent = t.logout;
+  if ($('langToggle')) $('langToggle').textContent = (currentLang === 'ko') ? 'English' : '한국어';
 
   let ws = $('weekSelector');
   if (ws) {
@@ -234,7 +235,6 @@ function draw() {
     return;
   }
 
-  // 멤버 정보가 아직 로딩 중일 때는 깜빡임이나 가입폼이 뜨지 않도록 로딩 표시
   if (!memberLoaded) {
     rootElem.innerHTML = '<section class="card center">' + t.loading + '</section>';
     return;
@@ -557,7 +557,7 @@ function resetAuth() {
     memberUnsub = onSnapshot(memberRef(u.uid), function(s) {
       let was = !!member;
       member = s.exists() ? s.data() : null;
-      memberLoaded = true; // 멤버 조회 완료 플래그 설정
+      memberLoaded = true;
       if (member) {
         if (!was) watchData();
         else draw();
@@ -600,8 +600,7 @@ document.addEventListener('click', function(e) {
   if (tBtn.id === 'langToggle') {
     currentLang = (currentLang === 'ko') ? 'en' : 'ko';
     localStorage.setItem('app_lang', currentLang);
-    isEnglish = (currentLang === 'en');
-    updateSvc();
+    updateLangConfig();
     draw();
     return;
   }
