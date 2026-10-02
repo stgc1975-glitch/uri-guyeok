@@ -54,9 +54,9 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 const district = 'songtan-01';
 
-// 브라우저 언어 감지 강화 (시스템 언어가 영어로 시작하거나 ko가 아니면 무조건 영어 처리)
-const langs = navigator.languages || [navigator.language || navigator.userLanguage || 'ko'];
-const isEnglish = !langs.some(function(l) { return l.toLowerCase().startsWith('ko'); });
+// 브라우저 언어 감지 (영어 기기면 확실하게 영문 적용)
+const userLang = navigator.language || navigator.userLanguage || 'ko';
+const isEnglish = userLang.toLowerCase().startsWith('en');
 
 const dict = {
   ko: {
