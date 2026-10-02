@@ -180,10 +180,14 @@ function draw() {
 
   let ws = $('weekSelector');
   if (ws) {
-    ws.innerHTML = weeksList.map(function(w) {
-      return '<option value="' + w.id + '" ' + (w.id === selectedWeek ? 'selected' : '') + '>' + w.label + '</option>';
-    }).join('');
-    ws.classList.toggle('hide', !member);
+    if (member) {
+      ws.innerHTML = weeksList.map(function(w) {
+        return '<option value="' + w.id + '" ' + (w.id === selectedWeek ? 'selected' : '') + '>' + w.label + '</option>';
+      }).join('');
+      ws.classList.remove('hide');
+    } else {
+      ws.classList.add('hide');
+    }
   }
 
   let weekLabelElem = $('weekLabel');
@@ -689,7 +693,6 @@ document.addEventListener('submit', function(e) {
   if (e.target.id === 'joinForm') {
     e.preventDefault();
     let f = new FormData(e.target);
-    let weekSelectorElem = $('weekSelector');
     let name = String(f.get('name') || '').trim();
     let code = String(f.get('code') || '').trim();
     if (!name || name.length > 40 || !code) return;
